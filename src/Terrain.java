@@ -1,10 +1,10 @@
 import java.awt.Color;
 
 public enum Terrain {
-    DIRT(1, new Color(210, 180, 140)),  // Cost +0
-    GRASS(2, new Color(84, 167, 7)),   // Cost +1
-    MUD(6, new Color(101, 67, 33)),     // Cost +5
-    WATER(11, new Color(34, 159, 200));  // Cost +10
+    DIRT(1, new Color(225, 200, 160)),  // Cost +0
+    GRASS(2, new Color(100, 180, 60)),   // Cost +1
+    MUD(6, new Color(120, 90, 60)),     // Cost +5
+    WATER(11, new Color(100, 200, 230));  // Cost +10
 
     public final int cost;
     public final Color color;
