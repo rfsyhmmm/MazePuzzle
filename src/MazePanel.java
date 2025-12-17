@@ -1,7 +1,7 @@
-import javax.swing.*;
 import java.awt.*;
 import java.util.*;
 import java.util.List;
+import javax.swing.*;
 
 public class MazePanel extends JPanel {
     private final int COLS, ROWS;
@@ -428,22 +428,37 @@ public class MazePanel extends JPanel {
         }
     }
 
+    // Di dalam file MazePanel.java
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
+        
+        // 1. Gambar Grid (Terrain & Dinding)
         for (int y = 0; y < ROWS; y++) {
             for (int x = 0; x < COLS; x++) {
                 grid[y][x].draw(g, CELL_SIZE);
             }
         }
+
+        // 2. Gambar Blok Proses (Animasi saat mencari jalan)
         if (currentProcessing != null) {
-            g.setColor(Color.MAGENTA);
+            g.setColor(new Color(255, 0, 255, 150)); // Magenta transparan
             g.fillRect(currentProcessing.x * CELL_SIZE + 5, currentProcessing.y * CELL_SIZE + 5, CELL_SIZE - 10, CELL_SIZE - 10);
+            g.setColor(Color.WHITE);
+            g.drawRect(currentProcessing.x * CELL_SIZE + 5, currentProcessing.y * CELL_SIZE + 5, CELL_SIZE - 10, CELL_SIZE - 10);
         }
+
+        // 3. GAMBAR JALUR HASIL (PATH) YANG LEBIH INTUITIF
         if (currentPath.size() > 1) {
-            g.setColor(Color.RED);
             Graphics2D g2 = (Graphics2D) g;
-            g2.setStroke(new BasicStroke(3));
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            // A. Layer Bawah: Glow / Cahaya (Kuning/Orange Transparan Tebal)
+            // Ini membuat jalur terlihat "bercahaya" dan mudah dilihat sekilas
+            g2.setColor(new Color(255, 200, 0, 100)); // Kuning Emas Transparan
+            g2.setStroke(new BasicStroke(10.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            
             for (int i = 0; i < currentPath.size() - 1; i++) {
                 Cell c1 = currentPath.get(i);
                 Cell c2 = currentPath.get(i+1);
@@ -451,10 +466,31 @@ public class MazePanel extends JPanel {
                 g2.drawLine(c1.x * CELL_SIZE + half, c1.y * CELL_SIZE + half,
                         c2.x * CELL_SIZE + half, c2.y * CELL_SIZE + half);
             }
+
+            // B. Layer Atas: Garis Inti (Merah Tegas Tipis)
+            // Ini menunjukkan arah pasti pergerakan
+            g2.setColor(new Color(255, 50, 50)); // Merah Terang
+            g2.setStroke(new BasicStroke(3.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            
+            for (int i = 0; i < currentPath.size() - 1; i++) {
+                Cell c1 = currentPath.get(i);
+                Cell c2 = currentPath.get(i+1);
+                int half = CELL_SIZE / 2;
+                g2.drawLine(c1.x * CELL_SIZE + half, c1.y * CELL_SIZE + half,
+                        c2.x * CELL_SIZE + half, c2.y * CELL_SIZE + half);
+                
+                // Opsional: Titik di setiap langkah (seperti remah roti)
+                g2.fillOval(c1.x * CELL_SIZE + half - 3, c1.y * CELL_SIZE + half - 3, 6, 6);
+            }
         }
+
+        // 4. Marker Start (Titik Biru)
         if (startCell != null) {
             g.setColor(Color.BLUE);
-            g.fillOval(startCell.x*CELL_SIZE+5, startCell.y*CELL_SIZE+5, 20, 20);
+            g.fillOval(startCell.x * CELL_SIZE + 8, startCell.y * CELL_SIZE + 8, CELL_SIZE - 16, CELL_SIZE - 16);
+            g.setColor(Color.WHITE); // Outline putih biar kontras
+            ((Graphics2D)g).setStroke(new BasicStroke(2));
+            g.drawOval(startCell.x * CELL_SIZE + 8, startCell.y * CELL_SIZE + 8, CELL_SIZE - 16, CELL_SIZE - 16);
         }
     }
 }
