@@ -37,8 +37,8 @@ public class MazeGame extends JFrame {
         mazeContainer.setBackground(new Color(35, 30, 25));
 
         mazePanel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(15, 10, 5), 4),
-            BorderFactory.createLineBorder(new Color(100, 90, 80), 1)
+                BorderFactory.createLineBorder(new Color(15, 10, 5), 4),
+                BorderFactory.createLineBorder(new Color(100, 90, 80), 1)
         ));
 
         mazeContainer.add(mazePanel);
@@ -70,19 +70,21 @@ public class MazeGame extends JFrame {
         // SECTION 2: PATHFINDING MAGIC
         addHeader(contentPanel, "SPELL BOOK");
 
-        // Memastikan ketiga tombol dibuat identik
         JButton btnBFS = createRPGButton("BFS", new Color(60, 80, 100));
         JButton btnDFS = createRPGButton("DFS", new Color(60, 80, 100));
         JButton btnDijkstra = createRPGButton("Dijkstra", new Color(60, 80, 100));
+        JButton btnAStar = createRPGButton("A* Star", new Color(100, 60, 140)); // Tombol Baru
 
         contentPanel.add(btnBFS);
         contentPanel.add(Box.createRigidArea(new Dimension(0, 10)));
         contentPanel.add(btnDFS);
         contentPanel.add(Box.createRigidArea(new Dimension(0, 10)));
         contentPanel.add(btnDijkstra);
+        contentPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        contentPanel.add(btnAStar); // Tambahkan ke panel
 
-        // Jarak setelah tombol terakhir sedikit disesuaikan
-        contentPanel.add(Box.createRigidArea(new Dimension(0, 35)));
+        // Jarak setelah tombol terakhir
+        contentPanel.add(Box.createRigidArea(new Dimension(0, 25)));
 
         // SECTION 3: TERRAIN MAP
         addHeader(contentPanel, "TERRAIN MAP");
@@ -90,65 +92,45 @@ public class MazeGame extends JFrame {
 
         contentPanel.add(Box.createRigidArea(new Dimension(0, 20)));
 
-        // --- SECTION 4: ADVENTURE LOG (UPDATED) ---
+        // --- SECTION 4: ADVENTURE LOG ---
         addHeader(contentPanel, "ADVENTURE LOG");
 
-        // 1. Setup TextArea dengan Font & Warna RPG
         logArea = new JTextArea(12, 20);
         logArea.setEditable(false);
-        // Menggunakan font Monospaced Bold agar seperti terminal sihir kuno
-        logArea.setFont(new Font("Monospaced", Font.BOLD, 11)); 
-        logArea.setBackground(new Color(25, 20, 15)); // Coklat sangat gelap (Black Coffee)
-        logArea.setForeground(new Color(200, 180, 120)); // Teks warna Emas Pudar (Parchment Text)
+        logArea.setFont(new Font("Monospaced", Font.BOLD, 11));
+        logArea.setBackground(new Color(25, 20, 15));
+        logArea.setForeground(new Color(200, 180, 120));
         logArea.setLineWrap(true);
         logArea.setWrapStyleWord(true);
 
-        // Auto-scroll ke bawah
         DefaultCaret caret = (DefaultCaret) logArea.getCaret();
         caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
 
-        // 2. Setup ScrollPane dengan Border RPG Mewah
         JScrollPane logScrollPane = new JScrollPane(logArea);
-        
-        // Menghilangkan border default scrollbar agar menyatu
-        logScrollPane.setBorder(null); 
+        logScrollPane.setBorder(null);
         logScrollPane.getViewport().setBackground(new Color(25, 20, 15));
-        
-        // Kustomisasi Scrollbar (Opsional: membuatnya lebih tipis/gelap)
         logScrollPane.getVerticalScrollBar().setBackground(new Color(40, 30, 20));
         logScrollPane.getVerticalScrollBar().setPreferredSize(new Dimension(10, 0));
 
-        // 3. Membuat Wrapper Panel (BINGKAI UTAMA)
         JPanel logWrapper = new JPanel(new BorderLayout());
-        logWrapper.setOpaque(false); // Transparan agar background kayu terlihat
-        
-        // --- INI SOLUSI AGAR TIDAK MEPET PINGGIR ---
-        // Memberikan margin kiri-kanan tambahan sebesar 10 pixel
-        logWrapper.setBorder(new EmptyBorder(0, 10, 0, 10)); 
+        logWrapper.setOpaque(false);
+        logWrapper.setBorder(new EmptyBorder(0, 10, 0, 10));
 
-        // Membuat Panel Bingkai Visual (Border berlapis)
         JPanel framePanel = new JPanel(new BorderLayout());
         framePanel.setBackground(new Color(25, 20, 15));
-        
-        // Border Kompleks: Luar (Kayu) -> Tengah (Emas Redup) -> Dalam (Padding Teks)
+
         framePanel.setBorder(BorderFactory.createCompoundBorder(
-            // Layer 1: Bingkai Kayu Tebal
-            BorderFactory.createMatteBorder(3, 3, 3, 3, new Color(60, 45, 30)),
-            BorderFactory.createCompoundBorder(
-                // Layer 2: Garis Aksen Emas Tua
-                BorderFactory.createLineBorder(new Color(100, 80, 50), 1),
-                // Layer 3: Jarak antara teks dan bingkai (Padding dalam)
-                BorderFactory.createEmptyBorder(8, 8, 8, 8) 
-            )
+                BorderFactory.createMatteBorder(3, 3, 3, 3, new Color(60, 45, 30)),
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(new Color(100, 80, 50), 1),
+                        BorderFactory.createEmptyBorder(8, 8, 8, 8)
+                )
         ));
-        
+
         framePanel.add(logScrollPane, BorderLayout.CENTER);
-        
-        // Masukkan frame ke wrapper, lalu wrapper ke contentPanel
         logWrapper.add(framePanel, BorderLayout.CENTER);
         contentPanel.add(logWrapper);
 
-        // Wrapping Sidebar
         JScrollPane sidebarScroll = new JScrollPane(contentPanel);
         sidebarScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         sidebarScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
@@ -171,6 +153,7 @@ public class MazeGame extends JFrame {
         btnBFS.addActionListener(e -> mazePanel.solveBFS());
         btnDFS.addActionListener(e -> mazePanel.solveDFS());
         btnDijkstra.addActionListener(e -> mazePanel.solveDijkstra());
+        btnAStar.addActionListener(e -> mazePanel.solveAStar()); // Panggil A*
 
         // --- WINDOW SETTINGS ---
         pack();
@@ -210,7 +193,6 @@ public class MazeGame extends JFrame {
         return lbl;
     }
 
-    // --- RPG BUTTON STYLE (35px & Clean) ---
     private JButton createRPGButton(String text, Color baseColor) {
         JButton btn = new JButton(text) {
             @Override
@@ -233,12 +215,10 @@ public class MazeGame extends JFrame {
                     cBot = baseColor.darker().darker();
                 }
 
-                // 1. Background Gradient
                 GradientPaint gp = new GradientPaint(0, 0, cTop, 0, h, cBot);
                 g2.setPaint(gp);
                 g2.fillRoundRect(2, 2, w-4, h-4, 10, 10);
 
-                // 2. Dark Border (Frame)
                 g2.setStroke(new BasicStroke(2f));
                 g2.setColor(new Color(30, 20, 10));
                 g2.drawRoundRect(2, 2, w-5, h-5, 10, 10);
@@ -251,7 +231,7 @@ public class MazeGame extends JFrame {
         btn.setForeground(Color.WHITE);
         btn.setFont(new Font("Trajan Pro", Font.BOLD, 13));
         if (!titleFont.getFamily().equalsIgnoreCase("Trajan Pro")) {
-             btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+            btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
         }
 
         btn.setFocusPainted(false);
@@ -259,7 +239,6 @@ public class MazeGame extends JFrame {
         btn.setContentAreaFilled(false);
         btn.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // --- FIXED: Ukuran 35px dipaksa untuk SEMUA tombol ---
         Dimension size = new Dimension(280, 35);
         btn.setPreferredSize(size);
         btn.setMaximumSize(size);
@@ -335,11 +314,9 @@ public class MazeGame extends JFrame {
                     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                     int size = getWidth();
 
-                    // Menggunakan warna terrain yang baru (gelap)
                     g2.setColor(t.color);
                     g2.fillRect(0, 0, size, size);
 
-                    // Dekorasi mini di legend juga disesuaikan gelapnya
                     if (t == Terrain.GRASS) {
                         g2.setColor(new Color(20, 50, 10, 150)); g2.setStroke(new BasicStroke(1.5f));
                         g2.drawLine(5, size-5, 5, size-12); g2.drawLine(15, size-5, 15, size-10);
@@ -358,7 +335,8 @@ public class MazeGame extends JFrame {
             };
             colorBox.setPreferredSize(new Dimension(28, 28));
 
-            JLabel nameLbl = new JLabel(t.name());
+            // Mengambil nama dan menambahkan nilai cost dalam kurung
+            JLabel nameLbl = new JLabel(t.name() + "(" + t.cost + ")");
             nameLbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
             nameLbl.setForeground(TEXT_COLOR);
 
@@ -369,7 +347,6 @@ public class MazeGame extends JFrame {
         panel.add(legendGrid);
     }
 
-    // --- WOOD PANEL ---
     class WoodPanel extends JPanel {
         @Override
         protected void paintComponent(Graphics g) {
@@ -398,8 +375,8 @@ public class MazeGame extends JFrame {
             }
 
             GradientPaint gp = new GradientPaint(
-                0, 0, new Color(0,0,0,100),
-                w/5, 0, new Color(0,0,0,0)
+                    0, 0, new Color(0,0,0,100),
+                    w/5, 0, new Color(0,0,0,0)
             );
             g2.setPaint(gp);
             g2.fillRect(0, 0, w/5, h);

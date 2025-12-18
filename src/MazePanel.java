@@ -5,7 +5,7 @@ import javax.swing.*;
 
 public class MazePanel extends JPanel {
     private final int COLS, ROWS;
-    private final int CELL_SIZE = 30; // Ukuran sel tetap 30
+    private final int CELL_SIZE = 30;
     private Cell[][] grid;
 
     private Cell startCell;
@@ -58,7 +58,10 @@ public class MazePanel extends JPanel {
         }
 
         generateTerrainOnly();
-        createMultipleWays(new Random());
+
+        // PENTING: Loops dimatikan agar Perfect Maze (1 jalur unik)
+        // createMultipleWays(new Random());
+
         setupStartAndExit();
 
         resetVisited();
@@ -67,45 +70,40 @@ public class MazePanel extends JPanel {
         repaint();
     }
 
-    // --- SOLVERS (DIPERBAIKI: CLEAR PATH DI AWAL) ---
+    // --- SOLVERS ---
 
     public void solveBFS() {
         if (isSolving || startCell == null) return;
-        
-        // 1. Bersihkan jalur lama & reset tampilan segera
-        currentPath.clear();
-        currentProcessing = null;
-        repaint(); 
-        
-        if (logArea != null) logArea.setText("");
+        prepareSolver();
         new Thread(this::runBFS).start();
     }
 
     public void solveDFS() {
         if (isSolving || startCell == null) return;
-        
-        // 1. Bersihkan jalur lama & reset tampilan segera
-        currentPath.clear();
-        currentProcessing = null;
-        repaint();
-        
-        if (logArea != null) logArea.setText("");
+        prepareSolver();
         new Thread(this::runDFS).start();
     }
 
     public void solveDijkstra() {
         if (isSolving || startCell == null) return;
-        
-        // 1. Bersihkan jalur lama & reset tampilan segera
-        currentPath.clear();
-        currentProcessing = null;
-        repaint();
-        
-        if (logArea != null) logArea.setText("");
+        prepareSolver();
         new Thread(this::runDijkstra).start();
     }
 
-    // --- RUNNING ALGORITHMS (UPDATED LOGS) ---
+    public void solveAStar() {
+        if (isSolving || startCell == null) return;
+        prepareSolver();
+        new Thread(this::runAStar).start();
+    }
+
+    private void prepareSolver() {
+        currentPath.clear();
+        currentProcessing = null;
+        repaint();
+        if (logArea != null) logArea.setText("");
+    }
+
+    // --- RUNNING ALGORITHMS ---
 
     private void runBFS() {
         isSolving = true;
@@ -118,14 +116,14 @@ public class MazePanel extends JPanel {
 
         log("> The scouting party spreads out...");
         log("Objective: Locate the exit.");
-        log("Tactic: Searching every corner equally.");
+        log("Tactic: Breadth-First Search.");
 
         while (!queue.isEmpty()) {
             Cell current = queue.poll();
             currentProcessing = current;
-            
+
             SwingUtilities.invokeLater(this::repaint);
-            sleep(30); 
+            sleep(20);
 
             if (current == endCell) {
                 log("\n> A path through the dark has been revealed.");
@@ -158,14 +156,14 @@ public class MazePanel extends JPanel {
 
         log("> Venturing deep into the unknown...");
         log("Objective: Locate the exit.");
-        log("Tactic: Braving the depths blindly.");
+        log("Tactic: Depth-First Search.");
 
         while (!stack.isEmpty()) {
             Cell current = stack.pop();
             currentProcessing = current;
-            
+
             SwingUtilities.invokeLater(this::repaint);
-            sleep(30);
+            sleep(20);
 
             if (current == endCell) {
                 log("\n> Destiny met. The exit lies before us.");
@@ -194,7 +192,8 @@ public class MazePanel extends JPanel {
         isSolving = true;
         resetVisited();
 
-        PriorityQueue<Node> pq = new PriorityQueue<>(Comparator.comparingInt(n -> n.cost));
+        // FIX: Gunakan gCost (jarak dari start) untuk Dijkstra
+        PriorityQueue<Node> pq = new PriorityQueue<>(Comparator.comparingInt(n -> n.gCost));
         Map<Cell, Integer> dist = new HashMap<>();
         Map<Cell, Cell> parentMap = new HashMap<>();
 
@@ -203,27 +202,30 @@ public class MazePanel extends JPanel {
                 dist.put(grid[y][x], Integer.MAX_VALUE);
 
         dist.put(startCell, 0);
-        pq.add(new Node(startCell, 0));
 
-        log("> calculating the safest route...");
-        log("Objective: Locate the exit.");
-        log("Tactic: Avoiding treacherous terrain.");
+        // FIX: Constructor Node 4 parameter (Cell, gCost, hCost, parent)
+        // hCost = 0 untuk Dijkstra
+        pq.add(new Node(startCell, 0, 0, null));
+
+        log("> Calculating the safest route (Dijkstra)...");
+        log("Tactic: Minimizing movement cost.");
 
         while (!pq.isEmpty()) {
             Node node = pq.poll();
             Cell current = node.cell;
 
-            if (node.cost > dist.get(current)) continue;
+            // FIX: Gunakan node.gCost bukan node.cost
+            if (node.gCost > dist.get(current)) continue;
 
             currentProcessing = current;
             current.visited = true;
-            
+
             SwingUtilities.invokeLater(this::repaint);
-            sleep(30);
+            sleep(20);
 
             if (current == endCell) {
                 log("\n> Optimal path secured.");
-                log("Fatigue Cost: " + node.cost);
+                log("Total Cost: " + node.gCost);
                 reconstructPath(parentMap, current);
                 isSolving = false;
                 return;
@@ -234,7 +236,8 @@ public class MazePanel extends JPanel {
                 if (newDist < dist.get(neighbor)) {
                     dist.put(neighbor, newDist);
                     parentMap.put(neighbor, current);
-                    pq.add(new Node(neighbor, newDist));
+                    // FIX: Masukkan ke PQ dengan format Node baru
+                    pq.add(new Node(neighbor, newDist, 0, null));
                 }
             }
         }
@@ -243,7 +246,72 @@ public class MazePanel extends JPanel {
         SwingUtilities.invokeLater(this::repaint);
     }
 
-    // --- UTILITIES (UPDATED LOGS) ---
+    private void runAStar() {
+        isSolving = true;
+        resetVisited();
+
+        // FIX: Gunakan fCost (g + h) untuk A*
+        PriorityQueue<Node> pq = new PriorityQueue<>(Comparator.comparingInt(n -> n.fCost));
+        Map<Cell, Integer> gScore = new HashMap<>();
+        Map<Cell, Cell> parentMap = new HashMap<>();
+
+        for(int y=0; y<ROWS; y++)
+            for(int x=0; x<COLS; x++)
+                gScore.put(grid[y][x], Integer.MAX_VALUE);
+
+        gScore.put(startCell, 0);
+
+        int hStart = getHeuristic(startCell, endCell);
+        // FIX: Constructor Node 4 parameter
+        pq.add(new Node(startCell, 0, hStart, null));
+
+        log("> Casting A* Divination...");
+        log("Tactic: Smart search using Heuristics.");
+
+        while (!pq.isEmpty()) {
+            Node node = pq.poll();
+            Cell current = node.cell;
+
+            // FIX: Logika skip jika gCost lebih buruk
+            if (node.gCost > gScore.get(current)) continue;
+
+            currentProcessing = current;
+            current.visited = true;
+
+            SwingUtilities.invokeLater(this::repaint);
+            sleep(20);
+
+            if (current == endCell) {
+                log("\n> The stars align. Path found!");
+                reconstructPath(parentMap, current);
+                isSolving = false;
+                return;
+            }
+
+            for (Cell neighbor : getAccessibleNeighbors(current)) {
+                int tentativeG = gScore.get(current) + neighbor.terrain.cost;
+
+                if (tentativeG < gScore.get(neighbor)) {
+                    gScore.put(neighbor, tentativeG);
+                    parentMap.put(neighbor, current);
+
+                    int hCost = getHeuristic(neighbor, endCell);
+                    // FIX: Masukkan node baru ke PQ
+                    pq.add(new Node(neighbor, tentativeG, hCost, null));
+                }
+            }
+        }
+        isSolving = false;
+        log("> The stars are silent. No path.");
+        SwingUtilities.invokeLater(this::repaint);
+    }
+
+    // --- UTILITIES ---
+
+    private int getHeuristic(Cell a, Cell b) {
+        // Manhattan Distance
+        return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+    }
 
     private void reconstructPath(Map<Cell, Cell> parentMap, Cell current) {
         List<Cell> path = new ArrayList<>();
@@ -252,7 +320,7 @@ public class MazePanel extends JPanel {
             current = parentMap.get(current);
         }
         Collections.reverse(path);
-        
+
         SwingUtilities.invokeLater(() -> {
             this.currentPath.clear();
             this.currentPath.addAll(path);
@@ -260,7 +328,6 @@ public class MazePanel extends JPanel {
             repaint();
         });
 
-        // Hitung Statistik
         int dirtCount = 0, grassCount = 0, mudCount = 0, waterCount = 0;
         for (Cell c : path) {
             switch (c.terrain) {
@@ -273,7 +340,7 @@ public class MazePanel extends JPanel {
 
         log("\n[JOURNEY RECORD]");
         log("Distance Traveled: " + path.size() + " paces.");
-        log("Terrain Crossed: Dirt(" + dirtCount + ") Grass(" + grassCount + ") Mud(" + mudCount + ") Water(" + waterCount + ")");
+        log("Terrain: Dirt(" + dirtCount + ") Grass(" + grassCount + ") Mud(" + mudCount + ") Water(" + waterCount + ")");
         log("-------------------------------------");
     }
 
@@ -345,17 +412,8 @@ public class MazePanel extends JPanel {
         }
     }
 
-    private void createMultipleWays(Random rand) {
-        int extraPaths = (ROWS * COLS) / 10;
-        for (int i = 0; i < extraPaths; i++) {
-            Cell c = grid[rand.nextInt(ROWS)][rand.nextInt(COLS)];
-            List<Cell> neighbors = getNeighbors(c);
-            if (!neighbors.isEmpty()) {
-                Cell n = neighbors.get(rand.nextInt(neighbors.size()));
-                removeWall(c, n, getDirection(c, n));
-            }
-        }
-    }
+    // Method ini tidak lagi digunakan agar maze menjadi "Perfect Maze"
+    // private void createMultipleWays(Random rand) { ... }
 
     private void setupStartAndExit() {
         Random rand = new Random();
@@ -428,8 +486,7 @@ public class MazePanel extends JPanel {
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        
-        // 1. Gambar Grid (Terrain & Dinding) - 2 Pass Rendering
+
         for (int y = 0; y < ROWS; y++) {
             for (int x = 0; x < COLS; x++) {
                 grid[y][x].drawTerrain(g, CELL_SIZE);
@@ -441,24 +498,20 @@ public class MazePanel extends JPanel {
             }
         }
 
-        // 2. Gambar Blok Proses (Animasi saat mencari jalan)
         if (currentProcessing != null) {
-            g.setColor(new Color(255, 0, 255, 150)); 
+            g.setColor(new Color(255, 0, 255, 150));
             g.fillRect(currentProcessing.x * CELL_SIZE + 5, currentProcessing.y * CELL_SIZE + 5, CELL_SIZE - 10, CELL_SIZE - 10);
             g.setColor(Color.WHITE);
             g.drawRect(currentProcessing.x * CELL_SIZE + 5, currentProcessing.y * CELL_SIZE + 5, CELL_SIZE - 10, CELL_SIZE - 10);
         }
 
-        // 3. GAMBAR JALUR HASIL (PATH) - ORGANIC STYLE
         if (currentPath.size() > 1) {
             Graphics2D g2 = (Graphics2D) g;
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
             int half = CELL_SIZE / 2;
 
-            // A. LAYER DASAR: GLOW TERANG HALUS
-            g2.setColor(new Color(255, 255, 220, 160)); 
-            float baseStrokeWidth = CELL_SIZE * 0.85f; // Lebar proporsional (sekitar 25px)
+            g2.setColor(new Color(255, 255, 220, 160));
+            float baseStrokeWidth = CELL_SIZE * 0.85f;
             g2.setStroke(new BasicStroke(baseStrokeWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 
             for (int i = 0; i < currentPath.size() - 1; i++) {
@@ -468,10 +521,9 @@ public class MazePanel extends JPanel {
                         c2.x * CELL_SIZE + half, c2.y * CELL_SIZE + half);
             }
 
-            // B. LAYER TENGAH: NEON MERAH
-            g2.setColor(new Color(255, 50, 50, 120)); 
+            g2.setColor(new Color(255, 50, 50, 120));
             g2.setStroke(new BasicStroke(CELL_SIZE * 0.4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            
+
             for (int i = 0; i < currentPath.size() - 1; i++) {
                 Cell c1 = currentPath.get(i);
                 Cell c2 = currentPath.get(i+1);
@@ -479,26 +531,22 @@ public class MazePanel extends JPanel {
                         c2.x * CELL_SIZE + half, c2.y * CELL_SIZE + half);
             }
 
-            // C. LAYER ATAS: GARIS INTI
-            g2.setColor(Color.RED); 
+            g2.setColor(Color.RED);
             g2.setStroke(new BasicStroke(3.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            
+
             for (int i = 0; i < currentPath.size() - 1; i++) {
                 Cell c1 = currentPath.get(i);
                 Cell c2 = currentPath.get(i+1);
                 g2.drawLine(c1.x * CELL_SIZE + half, c1.y * CELL_SIZE + half,
                         c2.x * CELL_SIZE + half, c2.y * CELL_SIZE + half);
-                
-                // Breadcrumbs (Titik Kecil)
                 g2.fillOval(c1.x * CELL_SIZE + half - 3, c1.y * CELL_SIZE + half - 3, 6, 6);
             }
         }
 
-        // 4. Marker Start (Titik Biru)
         if (startCell != null) {
             g.setColor(Color.BLUE);
             g.fillOval(startCell.x * CELL_SIZE + 8, startCell.y * CELL_SIZE + 8, CELL_SIZE - 16, CELL_SIZE - 16);
-            g.setColor(Color.WHITE); 
+            g.setColor(Color.WHITE);
             ((Graphics2D)g).setStroke(new BasicStroke(2));
             g.drawOval(startCell.x * CELL_SIZE + 8, startCell.y * CELL_SIZE + 8, CELL_SIZE - 16, CELL_SIZE - 16);
         }
