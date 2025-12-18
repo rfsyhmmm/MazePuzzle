@@ -1,7 +1,7 @@
 import java.awt.*;
+import java.util.Random;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.border.LineBorder;
 import javax.swing.text.DefaultCaret;
 
 public class MazeGame extends JFrame {
@@ -9,120 +9,153 @@ public class MazeGame extends JFrame {
     private MazePanel mazePanel;
     private JTextArea logArea;
     private JComboBox<String> algoSelector;
-    
-    // Palette Warna Modern
-    private final Color PANEL_BG = new Color(40, 44, 52);       // Dark Grey
-    private final Color TEXT_COLOR = new Color(220, 223, 228);  // Off-white
-    private final Color BTN_GEN_COLOR = new Color(152, 195, 121); // Pastel Green
-    private final Color BTN_SOLVE_COLOR = new Color(97, 175, 239); // Pastel Blue
-    private final Color LOG_BG = new Color(30, 33, 39);         // Darker for Log
-    private final Color LOG_TEXT = new Color(152, 195, 121);    // Terminal Green
+
+    // --- PALET WARNA DUNGEON THEME ---
+    private final Color HEADER_TEXT = new Color(255, 215, 120);
+    private final Color TEXT_COLOR = new Color(240, 230, 210);
+    private final Color LOG_BG = new Color(20, 15, 10);
+    private final Color LOG_TEXT = new Color(160, 210, 160);
+
+    // Font Utama
+    private Font titleFont;
 
     public MazeGame() {
-        setTitle("Java Maze Solver v0.5: UI Overhaul");
+        setTitle("Dungeon Maze Solver - RPG Style");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
-        // --- GRID AREA (CENTER) ---
-        mazePanel = new MazePanel(30, 20); 
-        // Beri sedikit padding di sekitar maze agar tidak nempel pinggir
+        // Setup Font
+        titleFont = new Font("Trajan Pro", Font.BOLD, 18);
+        if (!titleFont.getFamily().equalsIgnoreCase("Trajan Pro")) {
+            titleFont = new Font("Serif", Font.BOLD, 18);
+        }
+
+        // --- 1. GRID AREA (CENTER) ---
+        mazePanel = new MazePanel(35, 25);
+
         JPanel mazeContainer = new JPanel(new GridBagLayout());
-        mazeContainer.setBackground(new Color(60, 63, 68)); // Background belakang maze
+        mazeContainer.setBackground(new Color(35, 30, 25));
+
+        mazePanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(15, 10, 5), 4),
+                BorderFactory.createLineBorder(new Color(100, 90, 80), 1)
+        ));
+
         mazeContainer.add(mazePanel);
         add(mazeContainer, BorderLayout.CENTER);
 
-        // --- CONTROL PANEL (RIGHT) ---
-        JPanel controlPanel = new JPanel();
-        controlPanel.setPreferredSize(new Dimension(320, 0));
-        controlPanel.setLayout(new BoxLayout(controlPanel, BoxLayout.Y_AXIS));
-        controlPanel.setBackground(PANEL_BG);
-        controlPanel.setBorder(new EmptyBorder(20, 20, 20, 20)); // Margin dalam
+        // --- 2. CONTROL PANEL (SIDEBAR KANAN) ---
+        JPanel contentPanel = new WoodPanel();
+        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+        contentPanel.setBorder(new EmptyBorder(20, 0, 20, 20));
 
-        // 1. SECTION: GENERATOR
-        addHeader(controlPanel, "1. MAZE GENERATION");
-        
-        controlPanel.add(createLabel("Select Algorithm:"));
-        
-        String[] algorithms = {"Prim's Algorithm", "Kruskal's Algorithm"};
+        // --- MENGISI KONTEN SIDEBAR ---
+
+        // SECTION 1: WORLD GENERATION
+        addHeader(contentPanel, "DUNGEON");
+        contentPanel.add(createLabel("Maze Creation Magic:"));
+
+        String[] algorithms = {"Prim's Magic", "Kruskal's Magic"};
         algoSelector = new JComboBox<>(algorithms);
         styleComboBox(algoSelector);
-        controlPanel.add(algoSelector);
-        
-        controlPanel.add(Box.createRigidArea(new Dimension(0, 10)));
-        
-        JButton btnGen = createStyledButton("Generate Maze", BTN_GEN_COLOR, true);
-        controlPanel.add(btnGen);
-        
-        controlPanel.add(Box.createRigidArea(new Dimension(0, 25))); // Spacer antar section
+        contentPanel.add(algoSelector);
 
-        // 2. SECTION: SOLVER
-        addHeader(controlPanel, "2. PATH FINDING");
-        
-        JButton btnBFS = createStyledButton("Solve with BFS", BTN_SOLVE_COLOR, false);
-        controlPanel.add(Box.createRigidArea(new Dimension(0, 8)));
-        JButton btnDFS = createStyledButton("Solve with DFS", BTN_SOLVE_COLOR, false);
-        controlPanel.add(Box.createRigidArea(new Dimension(0, 8)));
-        JButton btnDijkstra = createStyledButton("Solve with Dijkstra", BTN_SOLVE_COLOR, false);
-        
-        // ... kode sebelumnya (deklarasi tombol) ...
+        contentPanel.add(Box.createRigidArea(new Dimension(0, 15)));
 
-        controlPanel.add(btnBFS);
-        // Tambah jarak 10 pixel
-        controlPanel.add(Box.createRigidArea(new Dimension(0, 10))); 
-        
-        controlPanel.add(btnDFS);
-        // Tambah jarak 10 pixel
-        controlPanel.add(Box.createRigidArea(new Dimension(0, 10)));
-        
-        controlPanel.add(btnDijkstra);
+        JButton btnGen = createRPGButton("Generate Dungeon", new Color(180, 130, 0));
+        contentPanel.add(btnGen);
 
-        // ... kode selanjutnya ...
+        contentPanel.add(Box.createRigidArea(new Dimension(0, 30)));
 
-        controlPanel.add(Box.createRigidArea(new Dimension(0, 25)));
+        // SECTION 2: PATHFINDING MAGIC
+        addHeader(contentPanel, "SPELL BOOK");
 
-        // 3. SECTION: LEGEND
-        addHeader(controlPanel, "TERRAIN LEGEND");
-        addLegend(controlPanel); // Method legend yang sudah kita modif sebelumnya
-        
-        controlPanel.add(Box.createRigidArea(new Dimension(0, 20)));
+        JButton btnBFS = createRPGButton("BFS", new Color(60, 80, 100));
+        JButton btnDFS = createRPGButton("DFS", new Color(60, 80, 100));
+        JButton btnDijkstra = createRPGButton("Dijkstra", new Color(60, 80, 100));
+        JButton btnAStar = createRPGButton("A* Star", new Color(100, 60, 140)); // Tombol Baru
 
-        // 4. SECTION: LOG
-        addHeader(controlPanel, "DECISION LOG");
-        
+        contentPanel.add(btnBFS);
+        contentPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        contentPanel.add(btnDFS);
+        contentPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        contentPanel.add(btnDijkstra);
+        contentPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        contentPanel.add(btnAStar); // Tambahkan ke panel
+
+        // Jarak setelah tombol terakhir
+        contentPanel.add(Box.createRigidArea(new Dimension(0, 25)));
+
+        // SECTION 3: TERRAIN MAP
+        addHeader(contentPanel, "TERRAIN MAP");
+        addLegend(contentPanel);
+
+        contentPanel.add(Box.createRigidArea(new Dimension(0, 20)));
+
+        // --- SECTION 4: ADVENTURE LOG ---
+        addHeader(contentPanel, "ADVENTURE LOG");
+
         logArea = new JTextArea(12, 20);
         logArea.setEditable(false);
-        logArea.setFont(new Font("Consolas", Font.PLAIN, 12));
-        logArea.setBackground(LOG_BG);
-        logArea.setForeground(LOG_TEXT);
+        logArea.setFont(new Font("Monospaced", Font.BOLD, 11));
+        logArea.setBackground(new Color(25, 20, 15));
+        logArea.setForeground(new Color(200, 180, 120));
         logArea.setLineWrap(true);
         logArea.setWrapStyleWord(true);
-        logArea.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 
-        // Auto-scroll log
         DefaultCaret caret = (DefaultCaret) logArea.getCaret();
         caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
 
-        JScrollPane scrollPane = new JScrollPane(logArea);
-        scrollPane.setBorder(new LineBorder(new Color(80, 80, 80))); // Border tipis
-        controlPanel.add(scrollPane);
+        JScrollPane logScrollPane = new JScrollPane(logArea);
+        logScrollPane.setBorder(null);
+        logScrollPane.getViewport().setBackground(new Color(25, 20, 15));
+        logScrollPane.getVerticalScrollBar().setBackground(new Color(40, 30, 20));
+        logScrollPane.getVerticalScrollBar().setPreferredSize(new Dimension(10, 0));
+
+        JPanel logWrapper = new JPanel(new BorderLayout());
+        logWrapper.setOpaque(false);
+        logWrapper.setBorder(new EmptyBorder(0, 10, 0, 10));
+
+        JPanel framePanel = new JPanel(new BorderLayout());
+        framePanel.setBackground(new Color(25, 20, 15));
+
+        framePanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(3, 3, 3, 3, new Color(60, 45, 30)),
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(new Color(100, 80, 50), 1),
+                        BorderFactory.createEmptyBorder(8, 8, 8, 8)
+                )
+        ));
+
+        framePanel.add(logScrollPane, BorderLayout.CENTER);
+        logWrapper.add(framePanel, BorderLayout.CENTER);
+        contentPanel.add(logWrapper);
+
+        JScrollPane sidebarScroll = new JScrollPane(contentPanel);
+        sidebarScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        sidebarScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        sidebarScroll.getVerticalScrollBar().setUnitIncrement(16);
+        sidebarScroll.setBorder(BorderFactory.createMatteBorder(0, 5, 0, 0, new Color(50, 40, 30)));
+        sidebarScroll.setPreferredSize(new Dimension(340, 0));
 
         mazePanel.setLogArea(logArea);
-        add(controlPanel, BorderLayout.EAST);
+        add(sidebarScroll, BorderLayout.EAST);
 
         // --- ACTION LISTENERS ---
         btnGen.addActionListener(e -> {
             logArea.setText("");
             String selectedAlgo = (String) algoSelector.getSelectedItem();
-            // Mapping nama di combobox ke parameter string
-            String code = selectedAlgo.contains("Kruskal") ? "Kruskal" : "Prim";
+            String code = selectedAlgo.contains("Kruskal") ? "Kruskal's" : "Prim's";
             mazePanel.generateMaze(code);
-            log(">> Maze Generated using " + code);
+            log(">> Dungeon Created using " + code + " Magic.");
         });
 
         btnBFS.addActionListener(e -> mazePanel.solveBFS());
         btnDFS.addActionListener(e -> mazePanel.solveDFS());
         btnDijkstra.addActionListener(e -> mazePanel.solveDijkstra());
+        btnAStar.addActionListener(e -> mazePanel.solveAStar()); // Panggil A*
 
+        // --- WINDOW SETTINGS ---
         pack();
         setLocationRelativeTo(null);
         setVisible(true);
@@ -134,128 +167,219 @@ public class MazeGame extends JFrame {
         logArea.append(msg + "\n");
     }
 
-    // Membuat Judul Section (Garis bawah tipis)
     private void addHeader(JPanel panel, String text) {
         JLabel lbl = new JLabel(text);
-        lbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        lbl.setForeground(new Color(100, 100, 100)); // Abu-abu pudar
+        lbl.setFont(titleFont);
+        lbl.setForeground(HEADER_TEXT);
         lbl.setAlignmentX(Component.LEFT_ALIGNMENT);
+        lbl.setUI(new javax.swing.plaf.basic.BasicLabelUI() {
+            public void paint(Graphics g, JComponent c) {
+                Graphics2D g2 = (Graphics2D)g;
+                g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+                g2.setColor(new Color(0,0,0,150));
+                g2.drawString(text, 2, lbl.getHeight()-7);
+                super.paint(g, c);
+            }
+        });
         panel.add(lbl);
-        panel.add(Box.createRigidArea(new Dimension(0, 5)));
+        panel.add(Box.createRigidArea(new Dimension(0, 8)));
     }
 
     private JLabel createLabel(String text) {
         JLabel lbl = new JLabel(text);
-        lbl.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        lbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
         lbl.setForeground(TEXT_COLOR);
         lbl.setAlignmentX(Component.LEFT_ALIGNMENT);
         return lbl;
     }
 
-    // Membuat Tombol Kustom (Flat Design)
-    private JButton createStyledButton(String text, Color baseColor, boolean isBold) {
+    private JButton createRPGButton(String text, Color baseColor) {
         JButton btn = new JButton(text) {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                
-                // Ubah warna jika ditekan
+
+                int w = getWidth();
+                int h = getHeight();
+
+                Color cTop, cBot;
                 if (getModel().isPressed()) {
-                    g2.setColor(baseColor.darker());
+                    cTop = baseColor.darker().darker();
+                    cBot = baseColor;
                 } else if (getModel().isRollover()) {
-                    g2.setColor(baseColor.brighter());
+                    cTop = baseColor.brighter();
+                    cBot = baseColor.darker();
                 } else {
-                    g2.setColor(baseColor);
+                    cTop = baseColor;
+                    cBot = baseColor.darker().darker();
                 }
-                
-                // Gambar tombol rounded
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
+
+                GradientPaint gp = new GradientPaint(0, 0, cTop, 0, h, cBot);
+                g2.setPaint(gp);
+                g2.fillRoundRect(2, 2, w-4, h-4, 10, 10);
+
+                g2.setStroke(new BasicStroke(2f));
+                g2.setColor(new Color(30, 20, 10));
+                g2.drawRoundRect(2, 2, w-5, h-5, 10, 10);
+
                 g2.dispose();
-                
                 super.paintComponent(g);
             }
         };
-        
-        btn.setForeground(Color.BLACK); // Teks tombol hitam agar kontras dengan warna pastel
-        if (baseColor == BTN_SOLVE_COLOR) btn.setForeground(Color.WHITE); // Teks putih untuk tombol biru
 
-        btn.setFont(new Font("Segoe UI", isBold ? Font.BOLD : Font.PLAIN, 14));
+        btn.setForeground(Color.WHITE);
+        btn.setFont(new Font("Trajan Pro", Font.BOLD, 13));
+        if (!titleFont.getFamily().equalsIgnoreCase("Trajan Pro")) {
+            btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        }
+
         btn.setFocusPainted(false);
         btn.setBorderPainted(false);
-        btn.setContentAreaFilled(false); // Penting agar paintComponent custom bekerja
+        btn.setContentAreaFilled(false);
         btn.setAlignmentX(Component.LEFT_ALIGNMENT);
-        btn.setMaximumSize(new Dimension(280, 40)); // Lebar maksimal
+
+        Dimension size = new Dimension(280, 35);
+        btn.setPreferredSize(size);
+        btn.setMaximumSize(size);
+        btn.setMinimumSize(size);
+
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        btn.setUI(new javax.swing.plaf.basic.BasicButtonUI() {
+            @Override
+            public void paint(Graphics g, JComponent c) {
+                AbstractButton b = (AbstractButton) c;
+                Graphics2D g2 = (Graphics2D) g;
+                g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+                FontMetrics fm = g.getFontMetrics();
+                int textX = (b.getWidth() - fm.stringWidth(b.getText())) / 2;
+                int textY = (b.getHeight() + fm.getAscent() - 4) / 2;
+
+                g2.drawString(b.getText(), textX + 1, textY + 1);
+                g2.setColor(b.getForeground());
+                g2.drawString(b.getText(), textX, textY);
+            }
+        });
+
         return btn;
     }
 
-    private void styleComboBox(JComboBox box) {
-        box.setMaximumSize(new Dimension(280, 30));
+    private void styleComboBox(JComboBox<String> box) {
+        Dimension size = new Dimension(280, 35);
+        box.setPreferredSize(size);
+        box.setMaximumSize(size);
+        box.setMinimumSize(size);
+
         box.setAlignmentX(Component.LEFT_ALIGNMENT);
-        box.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        box.setBackground(Color.WHITE);
-        ((JLabel)box.getRenderer()).setHorizontalAlignment(SwingConstants.LEFT);
+        box.setFont(new Font("Segoe UI", Font.BOLD, 13));
+
+        box.setBackground(new Color(210, 190, 150));
+        box.setForeground(new Color(60, 40, 20));
+
+        box.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+
+                if (isSelected) {
+                    setBackground(new Color(100, 80, 60));
+                    setForeground(new Color(255, 215, 120));
+                } else {
+                    setBackground(new Color(50, 40, 30));
+                    setForeground(new Color(200, 200, 200));
+                }
+                setBorder(new EmptyBorder(5, 5, 5, 5));
+                return this;
+            }
+        });
     }
 
-    // Method Legend yang sudah kita perbaiki sebelumnya (Updated untuk Dark Mode)
     private void addLegend(JPanel panel) {
-        panel.add(Box.createRigidArea(new Dimension(0, 5)));
-        
-        // Grid Layout untuk legend agar rapi (2 kolom)
-        JPanel legendGrid = new JPanel(new GridLayout(2, 2, 5, 5));
-        legendGrid.setBackground(PANEL_BG);
+        JPanel legendGrid = new JPanel(new GridLayout(2, 2, 8, 8));
+        legendGrid.setOpaque(false);
         legendGrid.setAlignmentX(Component.LEFT_ALIGNMENT);
-        legendGrid.setMaximumSize(new Dimension(280, 70));
+        legendGrid.setMaximumSize(new Dimension(280, 75));
 
         for (Terrain t : Terrain.values()) {
-            JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-            p.setBackground(PANEL_BG);
+            JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+            p.setOpaque(false);
 
-            // Kotak Icon Custom (Kode sama dengan sebelumnya)
             JPanel colorBox = new JPanel() {
                 @Override
                 protected void paintComponent(Graphics g) {
-                    super.paintComponent(g); 
+                    super.paintComponent(g);
                     Graphics2D g2 = (Graphics2D) g;
                     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                     int size = getWidth();
-                    
-                    // Background & Pattern
-                    Color baseColor = t.color;
-                    GradientPaint gp = new GradientPaint(0, 0, baseColor.brighter(), size, size, baseColor.darker());
-                    g2.setPaint(gp);
+
+                    g2.setColor(t.color);
                     g2.fillRect(0, 0, size, size);
 
-                    // Pola Sederhana (Miniatur dari Cell.java)
                     if (t == Terrain.GRASS) {
-                        g2.setColor(new Color(60, 120, 0, 150)); g2.setStroke(new BasicStroke(1.5f));
+                        g2.setColor(new Color(20, 50, 10, 150)); g2.setStroke(new BasicStroke(1.5f));
                         g2.drawLine(5, size-5, 5, size-12); g2.drawLine(15, size-5, 15, size-10);
                     } else if (t == Terrain.WATER) {
-                        g2.setColor(new Color(255, 255, 255, 80)); g2.setStroke(new BasicStroke(1.5f));
-                        g2.drawLine(5, 10, size-5, 10);
+                        g2.setColor(new Color(100, 150, 200, 80)); g2.setStroke(new BasicStroke(1.5f));
+                        g2.drawOval(5, 10, 8, 4);
                     } else if (t == Terrain.MUD) {
-                        g2.setColor(new Color(60, 40, 10, 100)); g2.fillOval(5, 5, size/2, size/2-5);
+                        g2.setColor(new Color(30, 20, 10, 100)); g2.fillOval(5, 5, size/2, size/2-5);
                     } else if (t == Terrain.DIRT) {
-                        g2.setColor(new Color(150, 120, 80, 180)); g2.fillOval(5, 5, 4, 4);
+                        g2.setColor(new Color(60, 50, 40, 120)); g2.fillRect(5, 5, 4, 4);
                     }
-                    
-                    // Border Putih Tipis (karena background panel gelap)
-                    g2.setColor(new Color(200, 200, 200, 100));
-                    g2.setStroke(new BasicStroke(1));
+
+                    g2.setColor(new Color(0, 0, 0, 100));
                     g2.drawRect(0, 0, size - 1, size - 1);
                 }
             };
-            colorBox.setPreferredSize(new Dimension(24, 24)); // Icon size
+            colorBox.setPreferredSize(new Dimension(28, 28));
 
-            JLabel nameLbl = new JLabel(t.name());
-            nameLbl.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-            nameLbl.setForeground(TEXT_COLOR); // Teks putih
+            // Mengambil nama dan menambahkan nilai cost dalam kurung
+            JLabel nameLbl = new JLabel(t.name() + "(" + t.cost + ")");
+            nameLbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
+            nameLbl.setForeground(TEXT_COLOR);
 
             p.add(colorBox);
             p.add(nameLbl);
             legendGrid.add(p);
         }
         panel.add(legendGrid);
+    }
+
+    class WoodPanel extends JPanel {
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Graphics2D g2 = (Graphics2D) g;
+            int w = getWidth();
+            int h = getHeight();
+
+            Color woodBase = new Color(110, 90, 60);
+            g2.setColor(woodBase);
+            g2.fillRect(0, 0, w, h);
+
+            Random rand = new Random(999);
+
+            for (int i = 0; i < h; i += 2) {
+                int alpha = rand.nextInt(40);
+                if (rand.nextBoolean()) {
+                    g2.setColor(new Color(50, 40, 20, alpha));
+                } else {
+                    g2.setColor(new Color(160, 130, 90, alpha));
+                }
+
+                int len = rand.nextInt(w);
+                int x = rand.nextInt(w - len);
+                g2.drawLine(x, i, x + len, i);
+            }
+
+            GradientPaint gp = new GradientPaint(
+                    0, 0, new Color(0,0,0,100),
+                    w/5, 0, new Color(0,0,0,0)
+            );
+            g2.setPaint(gp);
+            g2.fillRect(0, 0, w/5, h);
+        }
     }
 }

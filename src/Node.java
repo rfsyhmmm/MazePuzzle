@@ -1,9 +1,23 @@
-public class Node {
-    public Cell cell;
-    public int cost;
+import java.awt.*;
 
-    public Node(Cell c, int cost) {
-        this.cell = c;
-        this.cost = cost;
+public class Node implements Comparable<Node> {
+    public Cell cell;
+    public int gCost; // Jarak dari start
+    public int hCost; // Jarak estimasi ke end
+    public int fCost; // gCost + hCost
+    public Node parent; // Untuk melacak jalur balik (opsional, tapi berguna)
+
+    // Constructor 4 Argumen
+    public Node(Cell cell, int gCost, int hCost, Node parent) {
+        this.cell = cell;
+        this.gCost = gCost;
+        this.hCost = hCost;
+        this.fCost = gCost + hCost;
+        this.parent = parent;
+    }
+
+    @Override
+    public int compareTo(Node other) {
+        return Integer.compare(this.fCost, other.fCost);
     }
 }
