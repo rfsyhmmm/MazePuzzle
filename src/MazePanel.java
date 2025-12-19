@@ -11,11 +11,12 @@ public class MazePanel extends JPanel {
     private Cell startCell;
     private Cell endCell;
 
-    private boolean isSolving = false;
+    // Flag untuk mencegah tabrakan proses (Generating vs Solving)
+    private volatile boolean isWorking = false;
     private JTextArea logArea;
 
     private List<Cell> currentPath = new ArrayList<>();
-    private Cell currentProcessing = null;
+    private Cell currentProcessing = null; // Digunakan untuk highlight animasi
 
     public MazePanel(int cols, int rows) {
         this.COLS = cols;
@@ -46,52 +47,148 @@ public class MazePanel extends JPanel {
         }
     }
 
-    // --- GENERATOR ---
+    // --- GENERATOR (ANIMATED) ---
+
     public void generateMaze(String algorithm) {
-        if (isSolving) return;
+        if (isWorking) return; // Cegah double click saat proses berjalan
+
+        // Reset state visual sebelum thread dimulai
         initGrid();
-
-        if (algorithm.equals("Kruskal")) {
-            generateKruskal();
-        } else {
-            generatePrim();
-        }
-
-        generateTerrainOnly();
-
-        // PENTING: Loops dimatikan agar Perfect Maze (1 jalur unik)
-        // createMultipleWays(new Random());
-
-        setupStartAndExit();
-
-        resetVisited();
         currentPath.clear();
         currentProcessing = null;
+        startCell = null;
+        endCell = null;
         repaint();
+
+        // Jalankan generator di Thread terpisah agar bisa di-animasi (sleep)
+        new Thread(() -> {
+            isWorking = true;
+            if (algorithm.contains("Kruskal")) { // Handle string "Kruskal's" dari UI
+                runKruskalAnimation();
+            } else {
+                runPrimAnimation();
+            }
+
+            // Setelah struktur maze jadi, generate terrain dan titik start/end
+            generateTerrainOnly();
+            setupStartAndExit();
+
+            currentProcessing = null; // Hapus highlight proses
+            resetVisited(); // Pastikan bersih untuk solver
+            isWorking = false;
+            SwingUtilities.invokeLater(this::repaint);
+            log(">> Dungeon Ready for Adventure!");
+        }).start();
+    }
+
+    /**
+     * Best Practice Randomized Prim's:
+     * 1. Mulai dari satu sel acak.
+     * 2. Masukkan dinding tetangganya ke dalam daftar (frontier).
+     * 3. Pilih dinding acak dari frontier.
+     * 4. Jika sel di seberang dinding belum visited, hancurkan dinding dan jadikan sel itu bagian maze.
+     */
+    private void runPrimAnimation() {
+        log("> Casting Prim's Algorithm...");
+
+        // List dinding (Wall) sebagai Frontier
+        List<Wall> walls = new ArrayList<>();
+        Random rand = new Random();
+
+        // Mulai dari pojok kiri atas (atau acak)
+        Cell start = grid[0][0];
+        start.visited = true; // Visited di sini artinya "Masuk ke dalam Maze"
+        addWalls(start, walls);
+
+        while (!walls.isEmpty()) {
+            // Ambil dinding acak dari frontier
+            int index = rand.nextInt(walls.size());
+            Wall wall = walls.remove(index);
+
+            Cell current = wall.cell1;
+            Cell next = wall.cell2;
+
+            if (!next.visited) {
+                // Hancurkan dinding
+                removeWall(current, next, wall.direction);
+                next.visited = true;
+
+                // Tambahkan dinding tetangga baru ke frontier
+                addWalls(next, walls);
+
+                // Visualisasi Animasi
+                currentProcessing = next;
+                SwingUtilities.invokeLater(this::repaint);
+                sleep(10); // Kecepatan animasi (makin kecil makin cepat)
+            }
+        }
+    }
+
+    /**
+     * Best Practice Randomized Kruskal's:
+     * 1. Anggap setiap sel adalah set terpisah.
+     * 2. Kumpulkan semua kemungkinan dinding.
+     * 3. Acak urutan dinding.
+     * 4. Jika dua sel yang dipisahkan dinding berada di set berbeda, hancurkan dinding & gabungkan set.
+     */
+    private void runKruskalAnimation() {
+        log("> Casting Kruskal's Algorithm...");
+
+        List<Wall> allWalls = new ArrayList<>();
+        for (int y = 0; y < ROWS; y++) {
+            for (int x = 0; x < COLS; x++) {
+                if (x < COLS - 1) allWalls.add(new Wall(grid[y][x], grid[y][x+1], "right"));
+                if (y < ROWS - 1) allWalls.add(new Wall(grid[y][x], grid[y+1][x], "bottom"));
+            }
+        }
+
+        // Acak dinding untuk sifat random maze
+        Collections.shuffle(allWalls);
+
+        DisjointSet ds = new DisjointSet(COLS * ROWS);
+
+        int count = 0;
+        for (Wall w : allWalls) {
+            int id1 = w.cell1.y * COLS + w.cell1.x;
+            int id2 = w.cell2.y * COLS + w.cell2.x;
+
+            if (ds.find(id1) != ds.find(id2)) {
+                removeWall(w.cell1, w.cell2, w.direction);
+                ds.union(id1, id2);
+
+                // Visualisasi Animasi (hanya update tiap beberapa langkah agar tidak terlalu lambat)
+                currentProcessing = w.cell2;
+                if (count++ % 2 == 0) {
+                    SwingUtilities.invokeLater(this::repaint);
+                    sleep(5);
+                }
+            }
+        }
+        SwingUtilities.invokeLater(this::repaint);
     }
 
     // --- SOLVERS ---
 
     public void solveBFS() {
-        if (isSolving || startCell == null) return;
+        if (isWorking || startCell == null) return;
         prepareSolver();
         new Thread(this::runBFS).start();
     }
 
     public void solveDFS() {
-        if (isSolving || startCell == null) return;
+        if (isWorking || startCell == null) return;
         prepareSolver();
         new Thread(this::runDFS).start();
     }
 
     public void solveDijkstra() {
-        if (isSolving || startCell == null) return;
+        if (isWorking || startCell == null) return;
         prepareSolver();
         new Thread(this::runDijkstra).start();
     }
 
     public void solveAStar() {
-        if (isSolving || startCell == null) return;
+        if (isWorking || startCell == null) return;
         prepareSolver();
         new Thread(this::runAStar).start();
     }
@@ -103,32 +200,33 @@ public class MazePanel extends JPanel {
         if (logArea != null) logArea.setText("");
     }
 
-    // --- RUNNING ALGORITHMS ---
+    // --- RUNNING ALGORITHMS (SOLVER) ---
+    // (Kode solver tetap sama, hanya menambahkan pengecekan isWorking = true/false)
 
     private void runBFS() {
-        isSolving = true;
+        isWorking = true;
         resetVisited();
+
+        // BFS
         Queue<Cell> queue = new LinkedList<>();
         Map<Cell, Cell> parentMap = new HashMap<>();
 
         queue.add(startCell);
         startCell.visited = true;
 
-        log("> The scouting party spreads out...");
-        log("Objective: Locate the exit.");
-        log("Tactic: Breadth-First Search.");
+        log("> Breadth-First Search (BFS) started.");
 
         while (!queue.isEmpty()) {
             Cell current = queue.poll();
             currentProcessing = current;
 
             SwingUtilities.invokeLater(this::repaint);
-            sleep(20);
+            sleep(15);
 
             if (current == endCell) {
-                log("\n> A path through the dark has been revealed.");
+                log("> Exit found!");
                 reconstructPath(parentMap, current);
-                isSolving = false;
+                isWorking = false;
                 return;
             }
 
@@ -140,35 +238,35 @@ public class MazePanel extends JPanel {
                 }
             }
         }
-        isSolving = false;
-        log("> Hope fades. No passage found.");
+        isWorking = false;
+        log("> No path found.");
         SwingUtilities.invokeLater(this::repaint);
     }
 
     private void runDFS() {
-        isSolving = true;
+        isWorking = true;
         resetVisited();
+
+        // Stack
         Stack<Cell> stack = new Stack<>();
         Map<Cell, Cell> parentMap = new HashMap<>();
 
         stack.push(startCell);
         startCell.visited = true;
 
-        log("> Venturing deep into the unknown...");
-        log("Objective: Locate the exit.");
-        log("Tactic: Depth-First Search.");
+        log("> Depth-First Search (DFS) started.");
 
         while (!stack.isEmpty()) {
             Cell current = stack.pop();
             currentProcessing = current;
 
             SwingUtilities.invokeLater(this::repaint);
-            sleep(20);
+            sleep(15);
 
             if (current == endCell) {
-                log("\n> Destiny met. The exit lies before us.");
+                log("> Exit found!");
                 reconstructPath(parentMap, current);
-                isSolving = false;
+                isWorking = false;
                 return;
             }
 
@@ -183,51 +281,40 @@ public class MazePanel extends JPanel {
                 }
             }
         }
-        isSolving = false;
-        log("> Dead end. The dungeon claims another soul.");
+        isWorking = false;
+        log("> No path found.");
         SwingUtilities.invokeLater(this::repaint);
     }
 
     private void runDijkstra() {
-        isSolving = true;
+        isWorking = true;
         resetVisited();
-
-        // FIX: Gunakan gCost (jarak dari start) untuk Dijkstra
+        // PriorityQueue
         PriorityQueue<Node> pq = new PriorityQueue<>(Comparator.comparingInt(n -> n.gCost));
         Map<Cell, Integer> dist = new HashMap<>();
         Map<Cell, Cell> parentMap = new HashMap<>();
 
-        for(int y=0; y<ROWS; y++)
-            for(int x=0; x<COLS; x++)
-                dist.put(grid[y][x], Integer.MAX_VALUE);
-
+        for(int y=0; y<ROWS; y++) for(int x=0; x<COLS; x++) dist.put(grid[y][x], Integer.MAX_VALUE);
         dist.put(startCell, 0);
-
-        // FIX: Constructor Node 4 parameter (Cell, gCost, hCost, parent)
-        // hCost = 0 untuk Dijkstra
         pq.add(new Node(startCell, 0, 0, null));
 
-        log("> Calculating the safest route (Dijkstra)...");
-        log("Tactic: Minimizing movement cost.");
+        log("> Dijkstra started.");
 
         while (!pq.isEmpty()) {
             Node node = pq.poll();
             Cell current = node.cell;
 
-            // FIX: Gunakan node.gCost bukan node.cost
             if (node.gCost > dist.get(current)) continue;
 
             currentProcessing = current;
             current.visited = true;
-
             SwingUtilities.invokeLater(this::repaint);
-            sleep(20);
+            sleep(15);
 
             if (current == endCell) {
-                log("\n> Optimal path secured.");
-                log("Total Cost: " + node.gCost);
+                log("> Optimal path found (Cost: " + node.gCost + ")");
                 reconstructPath(parentMap, current);
-                isSolving = false;
+                isWorking = false;
                 return;
             }
 
@@ -236,80 +323,66 @@ public class MazePanel extends JPanel {
                 if (newDist < dist.get(neighbor)) {
                     dist.put(neighbor, newDist);
                     parentMap.put(neighbor, current);
-                    // FIX: Masukkan ke PQ dengan format Node baru
                     pq.add(new Node(neighbor, newDist, 0, null));
                 }
             }
         }
-        isSolving = false;
-        log("> No viable path discovered.");
+        isWorking = false;
+        log("> No path found.");
         SwingUtilities.invokeLater(this::repaint);
     }
 
     private void runAStar() {
-        isSolving = true;
+        isWorking = true;
         resetVisited();
-
-        // FIX: Gunakan fCost (g + h) untuk A*
         PriorityQueue<Node> pq = new PriorityQueue<>(Comparator.comparingInt(n -> n.fCost));
         Map<Cell, Integer> gScore = new HashMap<>();
         Map<Cell, Cell> parentMap = new HashMap<>();
 
-        for(int y=0; y<ROWS; y++)
-            for(int x=0; x<COLS; x++)
-                gScore.put(grid[y][x], Integer.MAX_VALUE);
-
+        for(int y=0; y<ROWS; y++) for(int x=0; x<COLS; x++) gScore.put(grid[y][x], Integer.MAX_VALUE);
         gScore.put(startCell, 0);
-
         int hStart = getHeuristic(startCell, endCell);
-        // FIX: Constructor Node 4 parameter
         pq.add(new Node(startCell, 0, hStart, null));
 
-        log("> Casting A* Divination...");
-        log("Tactic: Smart search using Heuristics.");
+        log("> A* Search started.");
 
         while (!pq.isEmpty()) {
             Node node = pq.poll();
             Cell current = node.cell;
 
-            // FIX: Logika skip jika gCost lebih buruk
             if (node.gCost > gScore.get(current)) continue;
 
             currentProcessing = current;
             current.visited = true;
-
             SwingUtilities.invokeLater(this::repaint);
-            sleep(20);
+            sleep(15);
 
             if (current == endCell) {
-                log("\n> The stars align. Path found!");
+                log("> Path found!");
                 reconstructPath(parentMap, current);
-                isSolving = false;
+                isWorking = false;
                 return;
             }
 
             for (Cell neighbor : getAccessibleNeighbors(current)) {
                 int tentativeG = gScore.get(current) + neighbor.terrain.cost;
-
                 if (tentativeG < gScore.get(neighbor)) {
                     gScore.put(neighbor, tentativeG);
                     parentMap.put(neighbor, current);
-
                     int hCost = getHeuristic(neighbor, endCell);
-                    // FIX: Masukkan node baru ke PQ
                     pq.add(new Node(neighbor, tentativeG, hCost, null));
                 }
             }
         }
-        isSolving = false;
-        log("> The stars are silent. No path.");
+        isWorking = false;
+        log("> No path found.");
         SwingUtilities.invokeLater(this::repaint);
     }
 
     // --- UTILITIES ---
 
     private int getHeuristic(Cell a, Cell b) {
-        // Manhattan Distance
+        if (b == null) return 0;
         return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
     }
 
@@ -328,75 +401,7 @@ public class MazePanel extends JPanel {
             repaint();
         });
 
-        int dirtCount = 0, grassCount = 0, mudCount = 0, waterCount = 0;
-        for (Cell c : path) {
-            switch (c.terrain) {
-                case DIRT: dirtCount++; break;
-                case GRASS: grassCount++; break;
-                case MUD: mudCount++; break;
-                case WATER: waterCount++; break;
-            }
-        }
-
-        log("\n[JOURNEY RECORD]");
-        log("Distance Traveled: " + path.size() + " paces.");
-        log("Terrain: Dirt(" + dirtCount + ") Grass(" + grassCount + ") Mud(" + mudCount + ") Water(" + waterCount + ")");
-        log("-------------------------------------");
-    }
-
-    private void generatePrim() {
-        List<Wall> walls = new ArrayList<>();
-        Random rand = new Random();
-        Cell start = grid[0][0];
-        start.visited = true;
-        addWalls(start, walls);
-
-        while (!walls.isEmpty()) {
-            Wall wall = walls.remove(rand.nextInt(walls.size()));
-            Cell next = wall.cell2;
-            if (!next.visited) {
-                next.visited = true;
-                removeWall(wall.cell1, next, wall.direction);
-                addWalls(next, walls);
-            }
-        }
-    }
-
-    private void generateKruskal() {
-        List<Wall> allWalls = new ArrayList<>();
-        for (int y = 0; y < ROWS; y++) {
-            for (int x = 0; x < COLS; x++) {
-                if (x < COLS - 1) allWalls.add(new Wall(grid[y][x], grid[y][x+1], "right"));
-                if (y < ROWS - 1) allWalls.add(new Wall(grid[y][x], grid[y+1][x], "bottom"));
-            }
-        }
-        Collections.shuffle(allWalls);
-        DisjointSet ds = new DisjointSet(COLS * ROWS);
-        for (Wall w : allWalls) {
-            int id1 = w.cell1.y * COLS + w.cell1.x;
-            int id2 = w.cell2.y * COLS + w.cell2.x;
-            if (ds.find(id1) != ds.find(id2)) {
-                removeWall(w.cell1, w.cell2, w.direction);
-                ds.union(id1, id2);
-            }
-        }
-    }
-
-    class DisjointSet {
-        int[] parent;
-        public DisjointSet(int n) {
-            parent = new int[n];
-            for (int i = 0; i < n; i++) parent[i] = i;
-        }
-        int find(int i) {
-            if (parent[i] == i) return i;
-            return parent[i] = find(parent[i]);
-        }
-        void union(int i, int j) {
-            int rootA = find(i);
-            int rootB = find(j);
-            if (rootA != rootB) parent[rootA] = rootB;
-        }
+        log("[Finished] Distance: " + path.size());
     }
 
     private void generateTerrainOnly() {
@@ -411,9 +416,6 @@ public class MazePanel extends JPanel {
             }
         }
     }
-
-    // Method ini tidak lagi digunakan agar maze menjadi "Perfect Maze"
-    // private void createMultipleWays(Random rand) { ... }
 
     private void setupStartAndExit() {
         Random rand = new Random();
@@ -442,22 +444,6 @@ public class MazePanel extends JPanel {
         if (isValid(c.x-1, c.y)) walls.add(new Wall(c, grid[c.y][c.x-1], "left"));
     }
 
-    private List<Cell> getNeighbors(Cell c) {
-        List<Cell> list = new ArrayList<>();
-        if (isValid(c.x, c.y-1)) list.add(grid[c.y-1][c.x]);
-        if (isValid(c.x+1, c.y)) list.add(grid[c.y][c.x+1]);
-        if (isValid(c.x, c.y+1)) list.add(grid[c.y+1][c.x]);
-        if (isValid(c.x-1, c.y)) list.add(grid[c.y][c.x-1]);
-        return list;
-    }
-
-    private String getDirection(Cell from, Cell to) {
-        if (to.x > from.x) return "right";
-        if (to.x < from.x) return "left";
-        if (to.y > from.y) return "bottom";
-        return "top";
-    }
-
     private void removeWall(Cell c, Cell n, String dir) {
         switch (dir) {
             case "top": c.walls[0] = false; n.walls[2] = false; break;
@@ -483,6 +469,23 @@ public class MazePanel extends JPanel {
         try { Thread.sleep(millis); } catch (InterruptedException e) {}
     }
 
+    class DisjointSet {
+        int[] parent;
+        public DisjointSet(int n) {
+            parent = new int[n];
+            for (int i = 0; i < n; i++) parent[i] = i;
+        }
+        int find(int i) {
+            if (parent[i] == i) return i;
+            return parent[i] = find(parent[i]);
+        }
+        void union(int i, int j) {
+            int rootA = find(i);
+            int rootB = find(j);
+            if (rootA != rootB) parent[rootA] = rootB;
+        }
+    }
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -498,8 +501,9 @@ public class MazePanel extends JPanel {
             }
         }
 
+        // Highlight sel yang sedang diproses (untuk animasi)
         if (currentProcessing != null) {
-            g.setColor(new Color(255, 0, 255, 150));
+            g.setColor(new Color(255, 200, 0, 180)); // Warna emas terang
             g.fillRect(currentProcessing.x * CELL_SIZE + 5, currentProcessing.y * CELL_SIZE + 5, CELL_SIZE - 10, CELL_SIZE - 10);
             g.setColor(Color.WHITE);
             g.drawRect(currentProcessing.x * CELL_SIZE + 5, currentProcessing.y * CELL_SIZE + 5, CELL_SIZE - 10, CELL_SIZE - 10);
@@ -529,17 +533,6 @@ public class MazePanel extends JPanel {
                 Cell c2 = currentPath.get(i+1);
                 g2.drawLine(c1.x * CELL_SIZE + half, c1.y * CELL_SIZE + half,
                         c2.x * CELL_SIZE + half, c2.y * CELL_SIZE + half);
-            }
-
-            g2.setColor(Color.RED);
-            g2.setStroke(new BasicStroke(3.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-
-            for (int i = 0; i < currentPath.size() - 1; i++) {
-                Cell c1 = currentPath.get(i);
-                Cell c2 = currentPath.get(i+1);
-                g2.drawLine(c1.x * CELL_SIZE + half, c1.y * CELL_SIZE + half,
-                        c2.x * CELL_SIZE + half, c2.y * CELL_SIZE + half);
-                g2.fillOval(c1.x * CELL_SIZE + half - 3, c1.y * CELL_SIZE + half - 3, 6, 6);
             }
         }
 
