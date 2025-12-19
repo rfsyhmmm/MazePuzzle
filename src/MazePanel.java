@@ -206,6 +206,8 @@ public class MazePanel extends JPanel {
     private void runBFS() {
         isWorking = true;
         resetVisited();
+
+        // BFS
         Queue<Cell> queue = new LinkedList<>();
         Map<Cell, Cell> parentMap = new HashMap<>();
 
@@ -244,6 +246,8 @@ public class MazePanel extends JPanel {
     private void runDFS() {
         isWorking = true;
         resetVisited();
+
+        // Stack
         Stack<Cell> stack = new Stack<>();
         Map<Cell, Cell> parentMap = new HashMap<>();
 
@@ -285,6 +289,7 @@ public class MazePanel extends JPanel {
     private void runDijkstra() {
         isWorking = true;
         resetVisited();
+        // PriorityQueue
         PriorityQueue<Node> pq = new PriorityQueue<>(Comparator.comparingInt(n -> n.gCost));
         Map<Cell, Integer> dist = new HashMap<>();
         Map<Cell, Cell> parentMap = new HashMap<>();
