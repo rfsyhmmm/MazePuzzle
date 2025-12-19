@@ -1,3 +1,8 @@
+Group 20 | ASD(C)
+- Rafsyah Fachri Isfansyah (5026241086)
+- Laurentius Lafrellio Soewandi (5026241102)
+
+
 # 🏰 Dungeon Maze Generator & Solver - RPG Style
 
 ![Java](https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
@@ -101,7 +106,7 @@ A generic visualization tool for Maze Generation and Pathfinding algorithms, wra
 
 ## 👤 Author
 
-**Rafsyah**
+**Rafsyah & Lafrelle**
 * Maze Generation Logic
 * Pathfinding Implementation
 * UI/UX Design
